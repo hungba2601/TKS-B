@@ -1,0 +1,33 @@
+{
+    "manifest_version": 3,
+    "name": "Thống kê SĐB - AI TKB",
+    "version": "1.0",
+    "description": "Thống kê sổ đầu bài, dò tìm giáo viên thiếu tiết từ file TKB PDF bằng Gemini AI.",
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting",
+        "downloads"
+    ],
+    "host_permissions": [
+        "https://*/*",
+        "http://*/*"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://hcm.quanlytruonghoc.edu.vn/*",
+                "http://hcm.quanlytruonghoc.edu.vn/*",
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_idle",
+            "all_frames": true
+        }
+    ]
+}

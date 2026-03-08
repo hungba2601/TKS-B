@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SĐB AI Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Override CSS cho phiên bản Web App chạy trên Vercel */
+        body {
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #e0f7fa;
+        }
+
+        .container {
+            width: 500px;
+            /* Làm khung to hơn bản tiện ích */
+            max-width: 90%;
+            background: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            /* Viền đổ bóng */
+        }
+
+        h2 {
+            font-size: 22px;
+            /* Tên to hơn */
+            margin-bottom: 25px;
+        }
+
+        label {
+            font-size: 15px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="file"] {
+            font-size: 15px;
+            padding: 10px;
+            width: calc(100% - 22px);
+            margin-bottom: 10px;
+        }
+
+        button {
+            font-size: 16px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .copyright {
+            margin-top: 25px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login Section -->
+    <div class="container" id="loginSection">
+        <h2>Đăng nhập sử dụng TK SĐB AI</h2>
+        <div class="form-group">
+            <label for="loginEmail">Email đăng nhập:</label>
+            <input type="text" id="loginEmail" placeholder="Nhập địa chỉ email...">
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">Mật khẩu:</label>
+            <input type="password" id="loginPassword" placeholder="Nhập mật khẩu...">
+        </div>
+        <button id="loginBtn" class="primary">Đăng Nhập</button>
+        <button id="showRegisterBtn" class="secondary">Chưa có tài khoản? Đăng ký</button>
+        <div class="status-box">
+            <label>Trạng thái:</label>
+            <textarea id="loginStatusArea" readonly rows="2">Vui lòng đăng nhập...</textarea>
+        </div>
+    </div>
+
+    <!-- Register Section -->
+    <div class="container" id="registerSection" style="display: none;">
+        <h2>Đăng Ký Tài Khoản</h2>
+        <div class="form-group">
+            <label for="regEmail">Email:</label>
+            <input type="text" id="regEmail" placeholder="Nhập email...">
+        </div>
+        <div class="form-group">
+            <label for="regPassword">Mật khẩu:</label>
+            <input type="password" id="regPassword" placeholder="Nhập mật khẩu...">
+        </div>
+        <div class="form-group">
+            <label for="regRepassword">Nhắc lại mật khẩu:</label>
+            <input type="password" id="regRepassword" placeholder="Nhập lại mật khẩu...">
+        </div>
+        <button id="registerBtn" class="primary">Đăng Ký</button>
+        <button id="showLoginBtn" class="secondary">Đã có tài khoản? Đăng nhập ngay</button>
+        <div class="status-box">
+            <label>Trạng thái:</label>
+            <textarea id="regStatusArea" readonly rows="2">Vui lòng nhập thông tin...</textarea>
+        </div>
+    </div>
+
+    <!-- Main App Section -->
+    <div class="container" id="mainSection" style="display: none;">
+        <div id="loggedInUserDisplay"
+            style="text-align: right; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #ccc;">
+        </div>
+        <h2>Thống Kê SĐB - AI TKB</h2>
+
+        <div class="form-group">
+            <label for="apiKey">Gemini 2.5 Flash API Key:</label>
+            <input type="password" id="apiKey" placeholder="Nhập API Key vào đây...">
+            <button id="saveKeyBtn">Lưu Key</button>
+        </div>
+
+        <div class="form-group">
+            <label for="excelFile">1. Tải lên File Excel Thiếu tiết:</label>
+            <input type="file" id="excelFile" accept=".xlsx, .xls">
+        </div>
+
+        <div class="form-group">
+            <label for="pdfFile">2. Tải lên File TKB (PDF):</label>
+            <input type="file" id="pdfFile" accept="application/pdf">
+        </div>
+
+        <div class="actions">
+            <button id="processBtn" class="primary">Bắt đầu Tích hợp & Xuất Excel</button>
+            <button id="logoutBtn"
+                style="background-color: #dc3545; color: white; display: block; margin-top: 10px;">Đăng Xuất</button>
+        </div>
+
+        <div class="status-box">
+            <label>Trạng thái:</label>
+            <textarea id="statusArea" readonly rows="5">Chưa bắt đầu...</textarea>
+        </div>
+    </div>
+
+    <div class="copyright" style="text-align: center; margin-top: 15px; font-size: 13px; color: #555;">
+        Made by Nguyễn Phi Hùng <br>
+        <span style="color: #0056b3; font-weight: bold;">Zalo 0938750424</span>
+    </div>
+
+    <!-- Include local scripts for extension compatibility -->
+    <script src="pdf.min.js"></script>
+    <script src="xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
