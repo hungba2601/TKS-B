@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!pdfFile.files.length) {
-            statusArea.value = 'Vui lòng chọn file TKB (PDF)!';
+            statusArea.value = 'Vui lòng chọn file TKB (PDF hoặc Excel)!';
             return;
         }
 
@@ -235,22 +235,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            statusArea.value = `2. Đã tìm thấy ${tasksToAI.length} ô cần điền tên GV. Trích xuất text từ file PDF (Siêu tốc)...`;
-
             let pdfText = "";
+            const tkbInputFile = pdfFile.files[0];
+            const tkbName = tkbInputFile.name.toLowerCase();
+
             try {
-                // Tải worker cục bộ đã download
-                pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
-                const pdfData = new Uint8Array(await pdfFile.files[0].arrayBuffer());
-                const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    const strings = content.items.map(item => item.str);
-                    pdfText += strings.join(" ") + "\n";
+                if (tkbName.endsWith('.pdf')) {
+                    statusArea.value = `2. Đã tìm thấy ${tasksToAI.length} ô cần điền tên GV. Trích xuất text từ file TKB (PDF)...`;
+                    // Tải worker cục bộ đã download
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+                    const pdfData = new Uint8Array(await tkbInputFile.arrayBuffer());
+                    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        const strings = content.items.map(item => item.str);
+                        pdfText += strings.join(" ") + "\n";
+                    }
+                } else if (tkbName.endsWith('.xls') || tkbName.endsWith('.xlsx')) {
+                    statusArea.value = `2. Đã tìm thấy ${tasksToAI.length} ô cần điền tên GV. Trích xuất text từ file TKB (Excel)...`;
+                    const tkbBuffer = await tkbInputFile.arrayBuffer();
+                    const tkbWorkbook = XLSX.read(tkbBuffer, { type: 'array' });
+                    for (const sheetName of tkbWorkbook.SheetNames) {
+                        const tkbSheet = tkbWorkbook.Sheets[sheetName];
+                        const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
+                        pdfText += `\n--- Sheet: ${sheetName} ---\n` + csvData + "\n";
+                    }
+                } else {
+                    statusArea.value = 'Lỗi: Thể loại file TKB không được hỗ trợ. Vui lòng chọn PDF hoặc Excel.';
+                    return;
                 }
             } catch (err) {
-                statusArea.value = 'Lỗi đọc file PDF: ' + err.message;
+                statusArea.value = 'Lỗi đọc file TKB: ' + err.message;
                 return;
             }
 
