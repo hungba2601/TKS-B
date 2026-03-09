@@ -239,7 +239,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (lowerCell.includes("thứ") || lowerCell.includes("tiết")) {
                             // Bỏ qua các chuỗi của header
                             if (!lowerCell.includes("ngày") && !lowerCell.includes("tổng số") && !lowerCell.includes("sđb")) {
-                                tasksToAI.push({ id: tasksToAI.length, row: r, col: c, className: cName, text: cellValue });
+                                // Tách các dòng trong cùng 1 ô nếu có nhiều nội dung (Alt+Enter)
+                                let lines = cellValue.split(/\r?\n/);
+                                for (let line of lines) {
+                                    let cleanLine = line.trim();
+                                    if (cleanLine) {
+                                        tasksToAI.push({ id: tasksToAI.length, row: r, col: c, className: cName, text: cleanLine });
+                                    }
+                                }
                             }
                         }
                     }
@@ -518,13 +525,29 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
 
             statusArea.value = '4. Đang xuất kết quả và tạo file Excel ráp nối...';
 
-            // Map AI result back to Array of Arrays (aoa)
+            // Map AI result back to original tasks
             geminiResults.forEach(task => {
                 let originalTask = tasksToAI.find(t => t.id === task.id);
                 if (originalTask) {
-                    aoa[originalTask.row][originalTask.col] = task.updatedText;
+                    originalTask.updatedText = task.updatedText;
                 }
             });
+
+            // Gộp lại các dòng trong cùng một ô
+            let groupedCells = {};
+            tasksToAI.forEach(t => {
+                let key = `${t.row}_${t.col}`;
+                if (!groupedCells[key]) {
+                    groupedCells[key] = [];
+                }
+                groupedCells[key].push(t.updatedText || t.text);
+            });
+
+            // Gắn vào mảng dữ liệu aoa
+            for (let key in groupedCells) {
+                let [r, c] = key.split('_');
+                aoa[r][c] = groupedCells[key].join('\n');
+            }
 
             // Write to Excel and trigger download
             const newWs = XLSX.utils.aoa_to_sheet(aoa);
