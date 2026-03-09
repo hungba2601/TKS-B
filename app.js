@@ -245,12 +245,71 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Tải worker cục bộ đã download
                     pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
                     const pdfData = new Uint8Array(await tkbInputFile.arrayBuffer());
+                    // Tạo danh sách lớp để lọc trang (nếu có thể) thay vì nối mọi trang vào chung 1 chuỗi dài lê thê
+                    const missingClasses = [...new Set(tasksToAI.map(t => String(t.className).toLowerCase().trim()))];
+
                     const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
                     for (let i = 1; i <= pdf.numPages; i++) {
                         const page = await pdf.getPage(i);
                         const content = await page.getTextContent();
-                        const strings = content.items.map(item => item.str);
-                        pdfText += strings.join(" ") + "\n";
+
+                        // Lọc và sắp xếp các chữ (item) theo tọa độ để giữ vững cấu trúc bảng/từng dòng nằm ngang
+                        let items = content.items;
+                        items.sort((a, b) => {
+                            // Cùng 1 dòng ngang (sai số 5 đơn vị y) thì ưu tiên từ trái sang phải
+                            // Nếu y chênh quá 5, thì ưu tiên dòng trên (y lớn hơn)
+                            let yDiff = b.transform[5] - a.transform[5];
+                            if (Math.abs(yDiff) < 5) {
+                                return a.transform[4] - b.transform[4]; // Sắp xếp x
+                            }
+                            return yDiff; // Sắp xếp y (từ trên xuống, gốc tọa độ PDF ở dưới cùng bên trái)
+                        });
+
+                        // Ghép các dòng theo logic (có cùng mức y) thay vì ráp bừa tứa lưa làm máy loạn não
+                        let structuredPageText = "";
+                        let currentY = -1;
+                        let rowText = [];
+
+                        for (let j = 0; j < items.length; j++) {
+                            let textObj = items[j];
+                            let startY = textObj.transform[5];
+                            let txt = textObj.str.trim();
+                            if (!txt) continue;
+
+                            if (currentY === -1 || Math.abs(currentY - startY) > 5) {
+                                // Xuống dòng mới
+                                if (rowText.length > 0) {
+                                    structuredPageText += rowText.join(" | ") + "\n";
+                                }
+                                rowText = [txt];
+                                currentY = startY;
+                            } else {
+                                // Cùng dòng
+                                rowText.push(txt);
+                            }
+                        }
+                        // Thêm dòng cuối
+                        if (rowText.length > 0) {
+                            structuredPageText += rowText.join(" | ") + "\n";
+                        }
+
+                        // Ưu tiên: Chỉ lấy Text của các "Trang" mà có chứa (ít nhất một vài) tên Lớp thiếu tiết để cắt giảm size.
+                        let isPageRelevant = false;
+                        let lowerPageText = structuredPageText.toLowerCase();
+                        let thresholdMatches = 0;
+
+                        // Kiểm tra xem trang có Lớp cần tìm không
+                        for (let mc of missingClasses) {
+                            let cleanMc = mc.replace(/^l?ớp\s*/, '').trim(); // ví dụ từ 'lớp 6/1' thành '6/1'
+                            if (lowerPageText.includes(` ${cleanMc} `) || lowerPageText.includes(`| ${cleanMc} |`) || lowerPageText.includes(mc)) {
+                                thresholdMatches++;
+                            }
+                        }
+
+                        // Nếu trang có dính líu đến LỚP thiếu tiết HOẶC chưa tìm ra đủ mọi lớp thiếu thì lấy trang đó đưa cho AI 
+                        if (thresholdMatches > 0 || missingClasses.length === 0) {
+                            pdfText += `\n--- Trang PDF liên quan (${i}) ---\n` + structuredPageText + "\n";
+                        }
                     }
                 } else if (tkbName.endsWith('.xls') || tkbName.endsWith('.xlsx')) {
                     statusArea.value = `2. Đã tìm thấy ${tasksToAI.length} ô cần điền tên GV. Trích xuất text từ file TKB (Excel)...`;
@@ -366,8 +425,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let geminiResults = [];
 
-            // Chia nhỏ thành các nhóm, mỗi nhóm 5 dòng để hỏi tránh quá tải
-            let batchSize = 5;
+            // Tăng số lượng câu hỏi trong mỗi gói lên 10 để chạy nhanh gấp đôi
+            let batchSize = 10;
             let totalBatches = Math.ceil(aiInput.length / batchSize);
 
             for (let b = 0; b < totalBatches; b++) {
