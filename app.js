@@ -528,6 +528,29 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
 
             // Write to Excel and trigger download
             const newWs = XLSX.utils.aoa_to_sheet(aoa);
+
+            // Giữ lại định dạng độ rộng cột (Column Widths) của file gốc nếu có
+            if (worksheet['!cols']) {
+                newWs['!cols'] = worksheet['!cols'];
+            } else {
+                // Nếu file gốc không có width chuẩn, tự tính toán độ rộng dựa trên độ dài nội dung (Auto-fit)
+                let colWidths = [];
+                for (let c = 0; c < aoa[0].length; c++) {
+                    let maxLen = 10; // Chiều rộng tối thiểu
+                    for (let r = 0; r < aoa.length; r++) {
+                        if (aoa[r][c]) {
+                            let cellLen = String(aoa[r][c]).length;
+                            if (cellLen > maxLen) {
+                                maxLen = cellLen;
+                            }
+                        }
+                    }
+                    // Thêm 2 ký tự pixel padding cho đẹp và giới hạn tối đa 60 để không bị quá to
+                    colWidths.push({ wch: Math.min(60, maxLen + 2) });
+                }
+                newWs['!cols'] = colWidths;
+            }
+
             workbook.Sheets[firstSheetName] = newWs;
             XLSX.writeFile(workbook, "SDB_TichHop_GV.xlsx");
 
