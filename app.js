@@ -356,9 +356,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim(); // Lớp, lớp, ớp
                                 let isMatch = missingClasses.some(mc => {
                                     let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
-                                    return cleanCell === cleanMc ||
-                                        (cleanCell.includes(cleanMc) && cleanCell.length <= cleanMc.length + 3) ||
-                                        (cleanMc.includes(cleanCell) && cleanMc.length <= cleanCell.length + 3);
+
+                                    // Chấp nhận trùng khớp tuyệt đối
+                                    if (cleanCell === cleanMc) return true;
+
+                                    // Chấp nhận nếu ô chứa tên lớp + có thể có thêm cụm từ khác bên cạnh (ví dụ: "6/1 (Si.Trường)")
+                                    // Đảm bảo không trùng nhầm (ví dụ "6/10" không được match với "6/1")
+                                    // Bằng cách yêu cầu kí tự liền kề nó trong tên cột phải không phải là số/chữ
+                                    let pattern = new RegExp(`(^|[^a-zA-Z0-9/])` + cleanMc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + `([^a-zA-Z0-9/]|$)`);
+                                    return pattern.test(cleanCell);
                                 });
 
                                 if (isMatch) matches++;
@@ -384,9 +390,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim();
                                 let isMatch = missingClasses.some(mc => {
                                     let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
-                                    return cleanCell === cleanMc ||
-                                        (cleanCell.includes(cleanMc) && cleanCell.length <= cleanMc.length + 3) ||
-                                        (cleanMc.includes(cleanCell) && cleanMc.length <= cleanCell.length + 3);
+
+                                    if (cleanCell === cleanMc) return true;
+
+                                    let pattern = new RegExp(`(^|[^a-zA-Z0-9/])` + cleanMc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + `([^a-zA-Z0-9/]|$)`);
+                                    return pattern.test(cleanCell);
                                 });
                                 if (isMatch) {
                                     colsToKeep.add(c);
