@@ -1,4 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- THEME TOGGLE ---
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        if (themeToggleBtn) themeToggleBtn.innerHTML = '☀️ Chế độ Sáng';
+    }
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('darkMode', 'true');
+                themeToggleBtn.innerHTML = '☀️ Chế độ Sáng';
+            } else {
+                localStorage.setItem('darkMode', 'false');
+                themeToggleBtn.innerHTML = '🌙 Chế độ Tối';
+            }
+        });
+    }
+
     // --- UI LOGIN / REGISTER ---
     const loginSection = document.getElementById('loginSection');
     const registerSection = document.getElementById('registerSection');

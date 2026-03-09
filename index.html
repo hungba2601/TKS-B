@@ -8,6 +8,42 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         /* Override CSS cho phiên bản Web App chạy trên Vercel */
+        :root {
+            --bg-body: linear-gradient(135deg, #00e5ff 0%, #1de9b6 100%);
+            /* Màu xanh lơ tuyệt đẹp */
+            --bg-container: rgba(255, 255, 255, 0.95);
+            --text-main: #333;
+            --text-label: #555;
+            --bg-input: #fff;
+            --border-input: #ccc;
+            --text-input: #000;
+            --bg-textarea: #eee;
+            --line-title: #0056b3;
+            --shadow-box: rgba(0, 0, 0, 0.15);
+            --btn-theme-bg: #fff;
+            --btn-theme-text: #333;
+            --copyright-text: #555;
+            --status-text: #333;
+        }
+
+        body.dark-mode {
+            --bg-body: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            /* Xanh tối / Xám sâu */
+            --bg-container: rgba(30, 34, 43, 0.95);
+            --text-main: #f0f0f0;
+            --text-label: #bbb;
+            --bg-input: #2a2d35;
+            --border-input: #555;
+            --text-input: #fff;
+            --bg-textarea: #2a2d35;
+            --line-title: #00e5ff;
+            --shadow-box: rgba(0, 0, 0, 0.6);
+            --btn-theme-bg: #2a2d35;
+            --btn-theme-text: #00e5ff;
+            --copyright-text: #aaa;
+            --status-text: #fff;
+        }
+
         body {
             width: 100%;
             height: 100vh;
@@ -17,28 +53,33 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: #e0f7fa;
+            background: var(--bg-body) !important;
+            color: var(--text-main);
+            transition: background 0.5s ease;
         }
 
         .container {
             width: 500px;
             /* Làm khung to hơn bản tiện ích */
             max-width: 90%;
-            background: white;
+            background: var(--bg-container) !important;
             padding: 30px 40px;
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-            /* Viền đổ bóng */
+            box-shadow: 0 10px 40px var(--shadow-box) !important;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
         }
 
         h2 {
             font-size: 22px;
-            /* Tên to hơn */
             margin-bottom: 25px;
+            color: var(--text-main) !important;
+            border-bottom-color: var(--line-title) !important;
         }
 
         label {
             font-size: 15px;
+            color: var(--text-label) !important;
         }
 
         input[type="text"],
@@ -48,22 +89,53 @@
             padding: 10px;
             width: calc(100% - 22px);
             margin-bottom: 10px;
+            background-color: var(--bg-input) !important;
+            color: var(--text-input) !important;
+            border-color: var(--border-input) !important;
         }
 
-        button {
-            font-size: 16px;
-            padding: 12px;
-            margin-bottom: 12px;
+        textarea {
+            background-color: var(--bg-textarea) !important;
+            color: var(--status-text) !important;
+            border-color: var(--border-input) !important;
         }
 
         .copyright {
             margin-top: 25px;
             font-size: 14px;
+            color: var(--copyright-text) !important;
+        }
+
+        #themeToggleBtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 18px;
+            border-radius: 20px;
+            background: var(--btn-theme-bg);
+            color: var(--btn-theme-text);
+            box-shadow: 0 4px 10px var(--shadow-box);
+            border: none;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        #themeToggleBtn:hover {
+            transform: scale(1.05);
         }
     </style>
 </head>
 
 <body>
+    <!-- Nút Dark Mode -->
+    <button id="themeToggleBtn">🌙 Chế độ Tối</button>
+
     <!-- Login Section -->
     <div class="container" id="loginSection">
         <h2>Đăng nhập sử dụng TK SĐB AI</h2>
