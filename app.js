@@ -256,10 +256,91 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusArea.value = `2. Đã tìm thấy ${tasksToAI.length} ô cần điền tên GV. Trích xuất text từ file TKB (Excel)...`;
                     const tkbBuffer = await tkbInputFile.arrayBuffer();
                     const tkbWorkbook = XLSX.read(tkbBuffer, { type: 'array' });
+
+                    const missingClasses = [...new Set(tasksToAI.map(t => String(t.className).toLowerCase().trim()))];
+
                     for (const sheetName of tkbWorkbook.SheetNames) {
                         const tkbSheet = tkbWorkbook.Sheets[sheetName];
-                        const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
-                        pdfText += `\n--- Sheet: ${sheetName} ---\n` + csvData + "\n";
+                        const tkbAoa = XLSX.utils.sheet_to_json(tkbSheet, { header: 1, defval: "" });
+
+                        if (tkbAoa.length === 0) continue;
+
+                        // Tìm dòng chứa tên lớp (thường từ dòng 1 đến 10, index 0 đến 9)
+                        let classRowIndex = -1;
+                        let maxMatches = 0;
+
+                        for (let r = 0; r < Math.min(15, tkbAoa.length); r++) {
+                            let matches = 0;
+                            for (let c = 0; c < tkbAoa[r].length; c++) {
+                                let cellVal = String(tkbAoa[r][c]).toLowerCase().trim();
+                                if (!cellVal || cellVal.length < 2) continue;
+
+                                let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim(); // Lớp, lớp, ớp
+                                let isMatch = missingClasses.some(mc => {
+                                    let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
+                                    return cleanCell === cleanMc ||
+                                        (cleanCell.includes(cleanMc) && cleanCell.length <= cleanMc.length + 3) ||
+                                        (cleanMc.includes(cleanCell) && cleanMc.length <= cleanCell.length + 3);
+                                });
+
+                                if (isMatch) matches++;
+                            }
+                            if (matches > maxMatches) {
+                                maxMatches = matches;
+                                classRowIndex = r;
+                            }
+                        }
+
+                        // Nếu tìm thấy dòng có chứa lớp, ta chỉ trích các cột chứa lớp đó (và 1 cột kế tiếp)
+                        if (classRowIndex !== -1 && maxMatches > 0) {
+                            let colsToKeep = new Set();
+                            // Luôn giữ ít nhất 3 cột đầu tiên (đề phòng cột STT, Thứ, Tiết)
+                            colsToKeep.add(0);
+                            colsToKeep.add(1);
+                            colsToKeep.add(2);
+
+                            // Thêm các cột chứa lớp bị thiếu
+                            for (let c = 0; c < tkbAoa[classRowIndex].length; c++) {
+                                let cellVal = String(tkbAoa[classRowIndex][c]).toLowerCase().trim();
+                                if (!cellVal) continue;
+                                let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim();
+                                let isMatch = missingClasses.some(mc => {
+                                    let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
+                                    return cleanCell === cleanMc ||
+                                        (cleanCell.includes(cleanMc) && cleanCell.length <= cleanMc.length + 3) ||
+                                        (cleanMc.includes(cleanCell) && cleanMc.length <= cleanCell.length + 3);
+                                });
+                                if (isMatch) {
+                                    colsToKeep.add(c);
+                                    colsToKeep.add(c + 1); // Cột kế tiếp thường là Cột KHTN/Sáng và Cột Chiều ghép đôi
+                                    colsToKeep.add(c + 2); // Thêm 1 cột dự phòng
+                                }
+                            }
+
+                            // Cắt mảng thành CSV nhưng chỉ chứa những cột cho phép
+                            let filteredCsv = "";
+                            for (let r = 0; r < tkbAoa.length; r++) {
+                                let rowVals = [];
+                                let hasData = false;
+                                for (let c = 0; c < tkbAoa[r].length; c++) {
+                                    if (colsToKeep.has(c)) {
+                                        let val = String(tkbAoa[r][c]).trim();
+                                        rowVals.push(val);
+                                        // Có dữ liệu môn học
+                                        if (val && c > 2) hasData = true;
+                                    }
+                                }
+                                // Giữ lại dòng lớp, dòng sát lớp, và các dòng có nội dung môn
+                                if (hasData || r <= classRowIndex + 1) {
+                                    filteredCsv += rowVals.join(",") + "\n";
+                                }
+                            }
+                            pdfText += `\n--- Sheet (Lấy Mẫu Cụ Thể Lớp): ${sheetName} ---\n` + filteredCsv + "\n";
+                        } else {
+                            // Nếu không rớt vào TH có vẻ như là cột lớp thì xài csv mặc định
+                            const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
+                            pdfText += `\n--- Sheet Đầy đủ (Do Không Khớp Lớp): ${sheetName} ---\n` + csvData + "\n";
+                        }
                     }
                 } else {
                     statusArea.value = 'Lỗi: Thể loại file TKB không được hỗ trợ. Vui lòng chọn PDF hoặc Excel.';
