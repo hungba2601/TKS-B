@@ -451,16 +451,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let geminiResults = [];
 
-            // Tăng số lượng câu hỏi trong mỗi gói lên 50 để chạy siêu tốc, giảm số lần gọi API
-            let batchSize = 50;
-            let totalBatches = Math.ceil(aiInput.length / batchSize);
+            // Gộp các tiết thiếu của cùng 1 dòng lớp (cùng 1 lớp) lại để hỏi AI một lượt
+            let groupedByClass = [];
+            tasksToAI.forEach(t => {
+                let cls = groupedByClass.find(g => g.class === t.className);
+                if (!cls) {
+                    cls = { class: t.className, items: [] };
+                    groupedByClass.push(cls);
+                }
+                cls.items.push(t);
+            });
+
+            // Số lớp mỗi gói (Mỗi lớp có thể có rất nhiều tiết tạo thành 1 cụm thống nhất)
+            let batchClassSize = 10;
+            let totalBatches = Math.ceil(groupedByClass.length / batchClassSize);
 
             for (let b = 0; b < totalBatches; b++) {
-                let batch = aiInput.slice(b * batchSize, (b + 1) * batchSize);
+                let batchClasses = groupedByClass.slice(b * batchClassSize, (b + 1) * batchClassSize);
 
                 let queryBlock = "";
-                for (let t of batch) {
-                    queryBlock += `[ID: ${t.id}] Lớp: ${t.class} | Dò tìm trong TKB ai dạy Giáo Viên và Môn học gì vào lúc: ${t.time}\n`;
+                let batchTaskCount = 0;
+                let originalBatchTasks = [];
+
+                for (let cls of batchClasses) {
+                    let queries = cls.items.map(t => `[Mã ID: ${t.id}] ${t.text}`).join(",  ");
+                    queryBlock += `Lớp: ${cls.class} | Cần tìm GV & Môn cho các tiết sau: ${queries}\n`;
+                    batchTaskCount += cls.items.length;
+                    originalBatchTasks.push(...cls.items);
                 }
 
                 const prompt = `Bạn là hệ thống AI siêu việt. Dưới đây là Toàn bộ Nội Dung Thời Khóa Biểu:
@@ -468,18 +485,18 @@ document.addEventListener('DOMContentLoaded', () => {
 ${safePdfText}
 --- KẾT THÚC DỮ LIỆU TKB ---
 
-NHIỆM VỤ: Hãy nhìn vào bộ Dữ liệu TKB trên, và điền Môn, Tên Giáo viên cho ${batch.length} câu hỏi sau:
+NHIỆM VỤ: Hãy nhìn vào bộ Dữ liệu TKB trên, và điền Môn, Tên Giáo viên cho ${batchTaskCount} tiết học đang bị thiếu thông tin. Các tiết học đã được GỘP nhóm theo từng Lớp dưới đây:
 ${queryBlock}
-BẤT BUỘC: Trả về ĐÚNG CÁC DÒNG CÓ ĐỊNH DẠNG SAU:
+BẤT BUỘC: Trả kết quả về ĐÚNG CÁC DÒNG CÓ ĐỊNH DẠNG SAU, mỗi "Mã ID" tiết học phải nằm trên một dòng riêng biệt:
 ID|Kết quả (Ghép Tên Môn và Tên GV vào ngay sau thời gian)
-Ví dụ nếu Lớp 6A1 môn Toán cô Hương dạy:
+Ví dụ nếu [Mã ID: 0] có thời gian là "Thứ 3 - Sáng (Tiết 4)", môn Toán, cô Hương dạy:
 0|Thứ 3 - Sáng (Tiết 4) - Toán (Hương)
-CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT MARKDOWN HOẶC GIẢI THÍCH GÌ THÊM!`;
+CHỈ TRẢ VỀ NHỮNG DÒNG CHỨA DẤU |, MỖI TIẾT MỘT DÒNG CHO ĐỦ ${batchTaskCount} MÃ ID, TUYỆT ĐỐI KHÔNG DÙNG FORMAT MARKDOWN HOẶC GIẢI THÍCH GÌ THÊM!`;
 
                 let retries = 3;
                 while (retries > 0) {
                     try {
-                        statusArea.value = `Đang nhờ AI giải mã Gói ${b + 1}/${totalBatches} (Vui lòng đợi vài giây)...`;
+                        statusArea.value = `Đang nhờ AI giải mã Gói ${b + 1}/${totalBatches} (Gồm ${batchClasses.length} lớp, ${batchTaskCount} tiết)...`;
                         let resp = await callGeminiTextAPI(key, prompt);
 
                         let lines = resp.trim().replace(/^```.*$/gm, "").split('\n');
@@ -500,19 +517,19 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
                             await new Promise(r => setTimeout(r, 6000));
                             retries--;
                             if (retries === 0) {
-                                for (let t of batch) geminiResults.push({ id: t.id, updatedText: t.time + ` (Lỗi AI: ${e.message})` });
+                                for (let t of originalBatchTasks) geminiResults.push({ id: t.id, updatedText: t.text + ` (Lỗi AI: ${e.message})` });
                             }
                         } else {
                             console.error("Lỗi AI gói", b, e);
-                            for (let t of batch) geminiResults.push({ id: t.id, updatedText: t.time + ` (Lỗi AI: ${e.message})` });
+                            for (let t of originalBatchTasks) geminiResults.push({ id: t.id, updatedText: t.text + ` (Lỗi AI: ${e.message})` });
                             break;
                         }
                     }
                 }
 
-                // Nghỉ ngơi 2 giây giữa các gói để tránh nhồi nhét Google
+                // Nghỉ ngơi 5 giây giữa các gói để tránh nhồi nhét Google và tránh lỗi Quá tải Tokens (429)
                 if (b < totalBatches - 1) {
-                    await new Promise(r => setTimeout(r, 2000));
+                    await new Promise(r => setTimeout(r, 5000));
                 }
             }
 
@@ -603,7 +620,7 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout để tránh bị treo vĩnh viễn mạng
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout để chờ gói dữ liệu lớn hơn xử lý
 
             const response = await fetch(url, {
                 method: 'POST',
