@@ -447,12 +447,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             statusArea.value = `3. Bắt đầu dò TKB. Đang nạp toàn bộ Dữ liệu và chia gói hỏi AI...`;
             const fullPdfText = pdfText.replace(/\s+/g, ' ');
-            const safePdfText = fullPdfText.substring(0, 90000); // Giới hạn tầm 30 trang TKB an toàn 1 lần gọi
+            const safePdfText = fullPdfText.substring(0, 150000); // Giới hạn an toàn, tăng lên để chứa nhiều dữ liệu hơn
 
             let geminiResults = [];
 
-            // Tăng số lượng câu hỏi trong mỗi gói lên 10 để chạy nhanh gấp đôi
-            let batchSize = 10;
+            // Tăng số lượng câu hỏi trong mỗi gói lên 50 để chạy siêu tốc, giảm số lần gọi API
+            let batchSize = 50;
             let totalBatches = Math.ceil(aiInput.length / batchSize);
 
             for (let b = 0; b < totalBatches; b++) {
@@ -494,13 +494,13 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
                         }
                         break; // Thành công thì thoát vòng lặp retry
                     } catch (e) {
-                        // Xử lý Lỗi Quá Tải của API Google Miễn phí
-                        if (e.message.includes('429')) {
-                            statusArea.value = `[Google báo 429 Quá Tải] Tự động nghỉ 10 giây để né spam API (Thử lại lần ${4 - retries})...`;
-                            await new Promise(r => setTimeout(r, 10000)); // Nhấp trà 10 giây
+                        // Xử lý Lỗi Quá Tải hoặc Lỗi Timeout Kẹt Mạng
+                        if (e.message.includes('429') || e.message.includes('Timeout') || e.message.includes('thử lại') || e.message.includes('fetch')) {
+                            statusArea.value = `[Kết nối chậm/Quá tải] Đang chờ 6s và thử lại vòng lặp (${4 - retries}/3)... Lỗi: ${e.message}`;
+                            await new Promise(r => setTimeout(r, 6000));
                             retries--;
                             if (retries === 0) {
-                                for (let t of batch) geminiResults.push({ id: t.id, updatedText: t.time + ` (Lỗi AI quá tải)` });
+                                for (let t of batch) geminiResults.push({ id: t.id, updatedText: t.time + ` (Lỗi AI: ${e.message})` });
                             }
                         } else {
                             console.error("Lỗi AI gói", b, e);
@@ -601,24 +601,37 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
             }
         };
 
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout để tránh bị treo vĩnh viễn mạng
 
-        if (!response.ok) {
-            const textContent = await response.text();
-            throw new Error(`API Error: ${response.status} - ${textContent}`);
-        }
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
 
-        const data = await response.json();
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            return data.candidates[0].content.parts.map(p => p.text).join("");
-        } else {
-            throw new Error("Không nhận được phản hồi hợp lệ từ Gemini.");
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const textContent = await response.text();
+                throw new Error(`API Error: ${response.status} - ${textContent}`);
+            }
+
+            const data = await response.json();
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                return data.candidates[0].content.parts.map(p => p.text).join("");
+            } else {
+                throw new Error("Không nhận được phản hồi hợp lệ từ Gemini.");
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new Error("Quá thời gian chờ (Timeout), mạng bị nghẽn hệ thống sẽ tự thử lại...");
+            }
+            throw error;
         }
     }
 });
