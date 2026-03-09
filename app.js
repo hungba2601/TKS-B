@@ -312,8 +312,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                                 if (isMatch) {
                                     colsToKeep.add(c);
-                                    colsToKeep.add(c + 1); // Cột kế tiếp thường là Cột KHTN/Sáng và Cột Chiều ghép đôi
-                                    colsToKeep.add(c + 2); // Thêm 1 cột dự phòng
+                                    // Các cột Sáng/Chiều của cùng 1 lớp thường được gộp ô (Merge Cells) ở dòng Tên Lớp. 
+                                    // Do đó các cột phía sau trong dòng đó sẽ rỗng. Bắt đúng các cột rỗng này thay vì +1, +2 cứng.
+                                    let nextC = c + 1;
+                                    while (nextC < tkbAoa[classRowIndex].length) {
+                                        let nextCellVal = String(tkbAoa[classRowIndex][nextC]).trim();
+                                        if (nextCellVal !== "") break; // Chạm phải cột chứa tên của lớp khác
+                                        colsToKeep.add(nextC);
+                                        nextC++;
+                                    }
                                 }
                             }
 
