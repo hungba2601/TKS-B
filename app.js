@@ -363,9 +363,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim(); // Lớp, lớp, ớp
                                 let isMatch = missingClasses.some(mc => {
                                     let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
-                                    return cleanCell === cleanMc ||
-                                        (cleanCell.includes(cleanMc) && cleanCell.length <= cleanMc.length + 3) ||
-                                        (cleanMc.includes(cleanCell) && cleanMc.length <= cleanCell.length + 3);
+                                    if (cleanCell === cleanMc) return true;
+                                    try {
+                                        let regex = new RegExp(`(^|[^\\p{L}\\p{N}_])${cleanMc.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}([^\\p{L}\\p{N}_]|$)`, 'iu');
+                                        if (regex.test(cleanCell) && cleanCell.length <= cleanMc.length + 5) return true;
+                                    } catch (e) {
+                                        let regex = new RegExp(`(?:^|[^a-zA-Z0-9_])${cleanMc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:[^a-zA-Z0-9_]|$)`, 'i');
+                                        if (regex.test(cleanCell) && cleanCell.length <= cleanMc.length + 5) return true;
+                                    }
+                                    return false;
                                 });
 
                                 if (isMatch) matches++;
@@ -376,13 +382,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
 
-                        // Nếu tìm thấy dòng có chứa lớp, ta chỉ trích các cột chứa lớp đó (và 1 cột kế tiếp)
+                        // Nếu tìm thấy dòng có chứa lớp, phân tách số liệu từng lớp riêng biệt để tránh AI bị loạn
                         if (classRowIndex !== -1 && maxMatches > 0) {
-                            let colsToKeep = new Set();
-                            // Luôn giữ ít nhất 3 cột đầu tiên (đề phòng cột STT, Thứ, Tiết)
-                            colsToKeep.add(0);
-                            colsToKeep.add(1);
-                            colsToKeep.add(2);
+                            let classColMappings = [];
 
                             // Thêm các cột chứa lớp bị thiếu
                             for (let c = 0; c < tkbAoa[classRowIndex].length; c++) {
@@ -391,43 +393,72 @@ document.addEventListener('DOMContentLoaded', () => {
                                 let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim();
                                 let isMatch = missingClasses.some(mc => {
                                     let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
-                                    return cleanCell === cleanMc ||
-                                        (cleanCell.includes(cleanMc) && cleanCell.length <= cleanMc.length + 3) ||
-                                        (cleanMc.includes(cleanCell) && cleanMc.length <= cleanCell.length + 3);
+                                    if (cleanCell === cleanMc) return true;
+                                    try {
+                                        let regex = new RegExp(`(^|[^\\p{L}\\p{N}_])${cleanMc.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}([^\\p{L}\\p{N}_]|$)`, 'iu');
+                                        if (regex.test(cleanCell) && cleanCell.length <= cleanMc.length + 5) return true;
+                                    } catch (e) {
+                                        let regex = new RegExp(`(?:^|[^a-zA-Z0-9_])${cleanMc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:[^a-zA-Z0-9_]|$)`, 'i');
+                                        if (regex.test(cleanCell) && cleanCell.length <= cleanMc.length + 5) return true;
+                                    }
+                                    return false;
                                 });
+
                                 if (isMatch) {
-                                    colsToKeep.add(c);
-                                    // Các cột Sáng/Chiều của cùng 1 lớp thường được gộp ô (Merge Cells) ở dòng Tên Lớp. 
-                                    // Do đó các cột phía sau trong dòng đó sẽ rỗng. Bắt đúng các cột rỗng này thay vì +1, +2 cứng.
+                                    let cols = [c];
+                                    // Bắt các cột Sáng/Chiều của lớp đã gộp ô (Merge Cells)
                                     let nextC = c + 1;
                                     while (nextC < tkbAoa[classRowIndex].length) {
                                         let nextCellVal = String(tkbAoa[classRowIndex][nextC]).trim();
-                                        if (nextCellVal !== "") break; // Chạm phải cột chứa tên của lớp khác
-                                        colsToKeep.add(nextC);
+                                        if (nextCellVal !== "") break; // Chạm phải cột chứa tên lớp khác
+                                        cols.push(nextC);
                                         nextC++;
                                     }
+                                    classColMappings.push({
+                                        originalName: tkbAoa[classRowIndex][c] || cleanCell,
+                                        cols: cols
+                                    });
                                 }
                             }
 
-                            // Cắt mảng thành CSV nhưng chỉ chứa những cột cho phép
-                            let filteredCsv = "";
-                            for (let r = 0; r < tkbAoa.length; r++) {
-                                let rowVals = [];
-                                let hasData = false;
-                                for (let c = 0; c < tkbAoa[r].length; c++) {
-                                    if (colsToKeep.has(c)) {
-                                        let val = String(tkbAoa[r][c]).trim();
-                                        rowVals.push(val);
-                                        // Có dữ liệu môn học
-                                        if (val && c > 2) hasData = true;
+                            // Tạo nội dung phân lập cho mỗi lớp
+                            if (classColMappings.length > 0) {
+                                let sharedCols = [0, 1, 2]; // Dự trữ cột STT, Thứ, Tiết mốc
+                                let sheetSpecificText = "";
+
+                                for (let mapping of classColMappings) {
+                                    sheetSpecificText += `\n--- DỮ LIỆU TKB LỚP: ${mapping.originalName} ---\n`;
+
+                                    for (let r = 0; r < tkbAoa.length; r++) {
+                                        let rowVals = [];
+                                        let hasData = false;
+
+                                        for (let sc of sharedCols) {
+                                            if (sc < tkbAoa[r].length) rowVals.push(String(tkbAoa[r][sc]).trim());
+                                            else rowVals.push("");
+                                        }
+
+                                        for (let cc of mapping.cols) {
+                                            if (cc < tkbAoa[r].length) {
+                                                let val = String(tkbAoa[r][cc]).trim();
+                                                rowVals.push(val);
+                                                if (val) hasData = true;
+                                            } else {
+                                                rowVals.push("");
+                                            }
+                                        }
+
+                                        // Giữ dòng trống ở các dòng header kề r <= classRowIndex + 1
+                                        if (hasData || r <= classRowIndex + 1) {
+                                            sheetSpecificText += rowVals.join(" | ") + "\n";
+                                        }
                                     }
                                 }
-                                // Giữ lại dòng lớp, dòng sát lớp, và các dòng có nội dung môn
-                                if (hasData || r <= classRowIndex + 1) {
-                                    filteredCsv += rowVals.join(",") + "\n";
-                                }
+                                pdfText += `\n--- Sheet (Phân Tách Lớp Rõ Ràng): ${sheetName} ---\n` + sheetSpecificText + "\n";
+                            } else {
+                                const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
+                                pdfText += `\n--- Sheet Đầy đủ (Không rớt trúng lọc): ${sheetName} ---\n` + csvData + "\n";
                             }
-                            pdfText += `\n--- Sheet (Lấy Mẫu Cụ Thể Lớp): ${sheetName} ---\n` + filteredCsv + "\n";
                         } else {
                             // Nếu không rớt vào TH có vẻ như là cột lớp thì xài csv mặc định
                             const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
