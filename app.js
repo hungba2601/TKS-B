@@ -423,11 +423,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             // Tạo nội dung phân lập cho mỗi lớp
                             if (classColMappings.length > 0) {
-                                let sharedCols = [0, 1, 2]; // Dự trữ cột STT, Thứ, Tiết mốc
+                                let firstClassCol = tkbAoa[classRowIndex].length;
+                                for (let c = 0; c < tkbAoa[classRowIndex].length; c++) {
+                                    let cellVal = String(tkbAoa[classRowIndex][c]).toLowerCase().trim();
+                                    if (cellVal !== "") {
+                                        if (!['stt', 'thứ', 'tiết', 'ngày', 'thời gian', 'buổi', 'buoi', 'thu', 'tiet'].includes(cellVal)) {
+                                            firstClassCol = c;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (firstClassCol === 0 || firstClassCol === tkbAoa[classRowIndex].length) {
+                                    firstClassCol = 2; // Dự trữ 2 cột mặc định nếu có lỗi
+                                }
+
+                                let sharedCols = [];
+                                for (let i = 0; i < firstClassCol; i++) {
+                                    sharedCols.push(i);
+                                }
+
                                 let sheetSpecificText = "";
 
                                 for (let mapping of classColMappings) {
                                     sheetSpecificText += `\n--- DỮ LIỆU TKB LỚP: ${mapping.originalName} ---\n`;
+
+                                    let subHeaders = [];
+                                    for (let cc of mapping.cols) {
+                                        let sh = "";
+                                        if (classRowIndex + 1 < tkbAoa[classRowIndex + 1]?.length && tkbAoa[classRowIndex + 1][cc]) {
+                                            let text = String(tkbAoa[classRowIndex + 1][cc]).trim();
+                                            if (text) sh = text;
+                                        }
+                                        subHeaders.push(sh);
+                                    }
 
                                     for (let r = 0; r < tkbAoa.length; r++) {
                                         let rowVals = [];
@@ -438,9 +466,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                             else rowVals.push("");
                                         }
 
-                                        for (let cc of mapping.cols) {
+                                        for (let idx = 0; idx < mapping.cols.length; idx++) {
+                                            let cc = mapping.cols[idx];
                                             if (cc < tkbAoa[r].length) {
                                                 let val = String(tkbAoa[r][cc]).trim();
+                                                if (val && r > classRowIndex + 1) { // Dòng dữ liệu thật
+                                                    let sh = subHeaders[idx];
+                                                    // Dán label (Ví dụ: [Sáng] GDTC)
+                                                    if (sh && !val.includes(`[${sh}]`)) {
+                                                        val = `[${sh}] ${val}`;
+                                                    }
+                                                }
                                                 rowVals.push(val);
                                                 if (val) hasData = true;
                                             } else {
