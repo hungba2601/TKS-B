@@ -515,14 +515,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 }
                                 pdfText += `\n--- Sheet (Phân Tách Lớp Rõ Ràng): ${sheetName} ---\n` + sheetSpecificText + "\n";
-                            } else {
+                            } else if (tkbWorkbook.SheetNames.length <= 2) {
                                 const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
                                 pdfText += `\n--- Sheet Đầy đủ (Không rớt trúng lọc): ${sheetName} ---\n` + csvData + "\n";
                             }
                         } else {
-                            // Nếu không rớt vào TH có vẻ như là cột lớp thì xài csv mặc định
-                            const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
-                            pdfText += `\n--- Sheet Đầy đủ (Do Không Khớp Lớp): ${sheetName} ---\n` + csvData + "\n";
+                            // Nếu không rớt vào TH có vẻ như là cột lớp thì xài csv mặc định, nhưng chỉ khi file có ít sheet. File nhiều sheet thì bỏ qua để tránh rác AI gây quá tải.
+                            if (tkbWorkbook.SheetNames.length <= 2) {
+                                const csvData = XLSX.utils.sheet_to_csv(tkbSheet);
+                                pdfText += `\n--- Sheet Đầy đủ (Do Không Khớp Lớp): ${sheetName} ---\n` + csvData + "\n";
+                            }
                         }
                     }
                 } else {
@@ -694,7 +696,7 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout để tránh bị treo vĩnh viễn mạng
+            const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout để tránh bị treo vĩnh viễn mạng
 
             const response = await fetch(url, {
                 method: 'POST',
