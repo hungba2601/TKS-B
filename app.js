@@ -188,6 +188,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             statusArea.value = '1. Đang phân tích File Excel...';
 
+            function sanitizeDateToClass(val) {
+                if (typeof val === 'number' && val > 30000 && val < 60000) {
+                    // Excel auto-date conversion intercept (for grade/class numbers mistakenly treated as dates like "7/12")
+                    let d = new Date(Math.round((val - 25569) * 86400 * 1000));
+                    let day = d.getUTCDate();
+                    let month = d.getUTCMonth() + 1;
+                    let isDayGrade = (day >= 6 && day <= 12);
+                    let isMonthGrade = (month >= 6 && month <= 12);
+                    if (isDayGrade && !isMonthGrade) return `${day}/${month}`;
+                    if (isMonthGrade && !isDayGrade) return `${month}/${day}`;
+                    return `${day}/${month}`;
+                }
+                return val;
+            }
+
             const excelInputFile = excelFile.files[0];
             const arrayBuffer = await excelInputFile.arrayBuffer();
             const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -196,6 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Convert to 2D array
             const aoa = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+            for (let r = 0; r < aoa.length; r++) {
+                if (!aoa[r]) continue;
+                for (let c = 0; c < aoa[r].length; c++) {
+                    aoa[r][c] = sanitizeDateToClass(aoa[r][c]);
+                }
+            }
 
             let classNameCol = 1;
 
@@ -345,6 +366,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     for (const sheetName of tkbWorkbook.SheetNames) {
                         const tkbSheet = tkbWorkbook.Sheets[sheetName];
                         const tkbAoa = XLSX.utils.sheet_to_json(tkbSheet, { header: 1, defval: "" });
+
+                        for (let r = 0; r < tkbAoa.length; r++) {
+                            if (!tkbAoa[r]) continue;
+                            for (let c = 0; c < tkbAoa[r].length; c++) {
+                                tkbAoa[r][c] = sanitizeDateToClass(tkbAoa[r][c]);
+                            }
+                        }
 
                         if (tkbAoa.length === 0) continue;
 
