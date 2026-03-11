@@ -342,13 +342,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     const tkbBuffer = await tkbInputFile.arrayBuffer();
                     const tkbWorkbook = XLSX.read(tkbBuffer, { type: 'array' });
 
-                    const missingClasses = [...new Set(tasksToAI.map(t => String(t.className).toLowerCase().trim()))];
-
                     for (const sheetName of tkbWorkbook.SheetNames) {
                         const tkbSheet = tkbWorkbook.Sheets[sheetName];
                         const tkbAoa = XLSX.utils.sheet_to_json(tkbSheet, { header: 1, defval: "" });
 
                         if (tkbAoa.length === 0) continue;
+
+                        // Identify if this sheet is designated for a specific grade and session
+                        let sheetNameLower = sheetName.toLowerCase().trim();
+                        let isKSheet = /^k\s*([6789])\s*(chiều|chieu)?/i.exec(sheetNameLower);
+                        let sheetGrade = isKSheet ? isKSheet[1] : null;
+                        let sheetIsAfternoon = isKSheet && isKSheet[2] ? true : false;
+
+                        // Determine which tasks are relevant for THIS sheet
+                        let relevantTasks = tasksToAI;
+                        if (isKSheet) {
+                            relevantTasks = tasksToAI.filter(t => {
+                                let cName = String(t.className).toLowerCase().trim();
+                                let gradeMatch = cName.match(/(?:(?:lớp|k)\s*)?([6789])/);
+                                if (!gradeMatch) return true; // Keep if we can't determine grade
+                                let taskGrade = gradeMatch[1];
+                                if (taskGrade !== sheetGrade) return false;
+
+                                let taskText = String(t.text).toLowerCase();
+                                let isTaskAfternoon = taskText.includes('chiều') || taskText.includes('chieu') || cName.includes('chiều') || cName.includes('chieu');
+                                return isTaskAfternoon === sheetIsAfternoon;
+                            });
+                        }
+
+                        if (relevantTasks.length === 0) continue; // Skip sheet if no tasks match its grade/session
+
+                        const missingClasses = [...new Set(relevantTasks.map(t => String(t.className).toLowerCase().trim()))];
 
                         // Tìm dòng chứa tên lớp (thường từ dòng 1 đến 10, index 0 đến 9)
                         let classRowIndex = -1;
