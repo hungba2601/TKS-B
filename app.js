@@ -194,8 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     let d = new Date(Math.round((val - 25569) * 86400 * 1000));
                     let day = d.getUTCDate();
                     let month = d.getUTCMonth() + 1;
-                    let isDayGrade = (day >= 6 && day <= 12);
-                    let isMonthGrade = (month >= 6 && month <= 12);
+                    let isDayGrade = (day >= 6 && day <= 9);
+                    let isMonthGrade = (month >= 6 && month <= 9);
                     if (isDayGrade && !isMonthGrade) return `${day}/${month}`;
                     if (isMonthGrade && !isDayGrade) return `${month}/${day}`;
                     return `${day}/${month}`;
