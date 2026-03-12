@@ -468,12 +468,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (isMatch) {
                                     let cols = [c];
                                     // Bắt các cột Sáng/Chiều của lớp đã gộp ô (Merge Cells)
+                                    // Cho phép nhảy qua tối đa 3 ô trống để tránh bị đứt đoạn ở các lớp cuối hàng
                                     let nextC = c + 1;
-                                    while (nextC < tkbAoa[classRowIndex].length) {
+                                    let emptyCount = 0;
+                                    while (nextC < tkbAoa[classRowIndex].length && emptyCount < 3) {
                                         let nextCellVal = String(tkbAoa[classRowIndex][nextC]).trim();
-                                        if (nextCellVal !== "") break; // Chạm phải cột chứa tên lớp khác
+                                        if (nextCellVal !== "") break;
                                         cols.push(nextC);
                                         nextC++;
+                                        emptyCount++;
                                     }
                                     classColMappings.push({
                                         originalName: tkbAoa[classRowIndex][c] || cleanCell,
@@ -547,7 +550,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                         // Giữ dòng trống ở các dòng header kề r <= classRowIndex + 1
                                         if (hasData || r <= classRowIndex + 1) {
-                                            sheetSpecificText += rowVals.join(" | ") + "\n";
+                                            let sessionLabel = sheetName.toLowerCase().includes("chiều") || sheetName.toLowerCase().includes("chieu") ? "[Chiều]" : "[Sáng]";
+                                            sheetSpecificText += `${sessionLabel} ` + rowVals.join(" | ") + "\n";
                                         }
                                     }
                                 }
