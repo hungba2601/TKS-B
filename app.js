@@ -387,9 +387,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Identify if this sheet is designated for a specific grade and session
                         let sheetNameLower = sheetName.toLowerCase().trim();
-                        let isKSheet = /^k\s*([6789])\s*(chiều|chieu)?/i.exec(sheetNameLower);
+                        let isKSheet = /(?:k|khối|khoi)\s*([6789])/i.exec(sheetNameLower);
                         let sheetGrade = isKSheet ? isKSheet[1] : null;
-                        let sheetIsAfternoon = isKSheet && isKSheet[2] ? true : false;
+                        let sheetIsAfternoon = sheetNameLower.includes('chiều') || sheetNameLower.includes('chieu');
 
                         // Determine which tasks are relevant for THIS sheet
                         let relevantTasks = tasksToAI;
@@ -421,10 +421,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 let cellVal = String(tkbAoa[r][c]).toLowerCase().trim();
                                 if (!cellVal || cellVal.length < 2) continue;
 
-                                let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim(); // Lớp, lớp, ớp
+                                let cleanCell = cellVal.replace(/^l?ớp\s*/, '').trim();
                                 let isMatch = missingClasses.some(mc => {
                                     let cleanMc = mc.replace(/^l?ớp\s*/, '').trim();
                                     if (cleanCell === cleanMc) return true;
+
+                                    // THÔNG MINH HÓA: Nếu lớp là "7/12" và ô TKB ghi "12" thì vẫn khớp (khi đang ở đúng khối)
+                                    if (cleanMc.includes('/')) {
+                                        let parts = cleanMc.split('/');
+                                        if (cleanCell === parts[1].trim()) return true;
+                                    }
+
                                     try {
                                         let regex = new RegExp(`(^|[^\\p{L}\\p{N}_])${cleanMc.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}([^\\p{L}\\p{N}_]|$)`, 'iu');
                                         if (regex.test(cleanCell) && cleanCell.length <= cleanMc.length + 5) return true;
