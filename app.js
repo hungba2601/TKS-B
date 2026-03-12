@@ -514,6 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
 
                                 let sheetSpecificText = "";
+                                let lastSharedVals = new Array(sharedCols.length).fill(""); // Lưu giá trị ô gộp phía trên
 
                                 for (let mapping of classColMappings) {
                                     sheetSpecificText += `\n--- DỮ LIỆU TKB LỚP: ${mapping.originalName} ---\n`;
@@ -532,9 +533,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                         let rowVals = [];
                                         let hasData = false;
 
-                                        for (let sc of sharedCols) {
-                                            if (sc < tkbAoa[r].length) rowVals.push(String(tkbAoa[r][sc]).trim());
-                                            else rowVals.push("");
+                                        for (let i = 0; i < sharedCols.length; i++) {
+                                            let sc = sharedCols[i];
+                                            let val = (sc < tkbAoa[r].length) ? String(tkbAoa[r][sc]).trim() : "";
+
+                                            // LOGIC FILL DOWN: Nếu ô trống và không phải Header, lấy giá trị dòng trên (xử lý ô gộp)
+                                            if (val === "" && r > classRowIndex) {
+                                                val = lastSharedVals[i];
+                                            } else {
+                                                lastSharedVals[i] = val;
+                                            }
+                                            rowVals.push(val);
                                         }
 
                                         for (let idx = 0; idx < mapping.cols.length; idx++) {
@@ -543,7 +552,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 let val = String(tkbAoa[r][cc]).trim();
                                                 if (val && r > classRowIndex + 1) { // Dòng dữ liệu thật
                                                     let sh = subHeaders[idx];
-                                                    // Dán label (Ví dụ: [Sáng] GDTC)
                                                     if (sh && !val.includes(`[${sh}]`)) {
                                                         val = `[${sh}] ${val}`;
                                                     }
@@ -555,7 +563,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                             }
                                         }
 
-                                        // Giữ dòng trống ở các dòng header kề r <= classRowIndex + 1
                                         if (hasData || r <= classRowIndex + 1) {
                                             let sessionLabel = sheetName.toLowerCase().includes("chiều") || sheetName.toLowerCase().includes("chieu") ? "[Chiều]" : "[Sáng]";
                                             sheetSpecificText += `${sessionLabel} ` + rowVals.join(" | ") + "\n";
