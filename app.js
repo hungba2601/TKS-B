@@ -260,13 +260,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (lowerCell.includes("thứ") || lowerCell.includes("tiết")) {
                             // Bỏ qua các chuỗi của header
                             if (!lowerCell.includes("ngày") && !lowerCell.includes("tổng số") && !lowerCell.includes("sđb")) {
-                                // Tách các dòng trong cùng 1 ô nếu có nhiều nội dung (Alt+Enter)
-                                let lines = cellValue.split(/\r?\n/);
-                                for (let line of lines) {
+                                // Tách các dòng trong cùng 1 ô nếu có nhiều nội dung (Alt+Enter hoặc dấu chấm phẩy)
+                                let rawLines = cellValue.split(/[\r\n;]+/);
+                                let currentThu = "";
+                                for (let line of rawLines) {
                                     let cleanLine = line.trim();
-                                    if (cleanLine) {
-                                        tasksToAI.push({ id: tasksToAI.length, row: r, col: c, className: cName, text: cleanLine });
+                                    if (!cleanLine) continue;
+
+                                    // Tự động mang ngữ cảnh "Thứ" sang các tiết viết tắt kề sau
+                                    let thuMatch = cleanLine.match(/Thứ\s*\d+/i);
+                                    if (thuMatch) {
+                                        currentThu = thuMatch[0];
+                                    } else if (currentThu && !cleanLine.toLowerCase().includes("thứ")) {
+                                        cleanLine = currentThu + " - " + cleanLine;
                                     }
+
+                                    tasksToAI.push({ id: tasksToAI.length, row: r, col: c, className: cName, text: cleanLine });
                                 }
                             }
                         }
@@ -406,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         let classRowIndex = -1;
                         let maxMatches = 0;
 
-                        for (let r = 0; r < Math.min(15, tkbAoa.length); r++) {
+                        for (let r = 0; r < Math.min(30, tkbAoa.length); r++) {
                             let matches = 0;
                             for (let c = 0; c < tkbAoa[r].length; c++) {
                                 let cellVal = String(tkbAoa[r][c]).toLowerCase().trim();
