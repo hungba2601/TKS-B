@@ -734,8 +734,8 @@ CHỈ TRẢ VỀ CÁC DÒNG CHỨA DẤU |, TUYỆT ĐỐI KHÔNG DÙNG FORMAT M
     });
 
     async function callGeminiTextAPI(apiKey, prompt) {
-        // Use gemini-2.5-flash as requested by the user
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        // Use gemini-3-flash-preview as requested by the user
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
         const payload = {
             contents: [{
